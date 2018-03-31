@@ -1,8 +1,8 @@
-# Deep Learning Quick Reference Chapter 8: Transfer Learning
-# Mike Bernico <mike.bernico@gmail.com>
+# Transfer Learning Example using 10 Monkey Species Dataset
+# https://www.kaggle.com/slothkong/10-monkey-species
+# Author: Mike Bernico @mikebernico mike.bernico@gmail.com
 
-
-# seed random number generators before importing keras
+# these seeds are both required for reproducibility
 import numpy as np
 np.random.seed(42)
 import tensorflow as tf
@@ -11,29 +11,24 @@ tf.set_random_seed(42)
 from keras.applications.inception_v3 import InceptionV3
 from keras.models import Model
 from keras.layers import Dense, GlobalAveragePooling2D
-from keras.callbacks import TensorBoard, EarlyStopping, CSVLogger, ModelCheckpoint
+from keras.callbacks import TensorBoard, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import SGD
 import os
+from transfer_learning_config import Configuration
 
 
 def build_model_feature_extraction():
     # create the base pre-trained model
     base_model = InceptionV3(weights='imagenet', include_top=False)
-
-    # add a global spatial average pooling layer
     x = base_model.output
-    x = GlobalAveragePooling2D()(x)
-    # let's add a fully-connected layer
-    x = Dense(1024, activation='relu')(x)
-    # and a logistic layer
-    predictions = Dense(10, activation='softmax')(x)
+    x = GlobalAveragePooling2D()(x)  # make sure we're back at a 2d tensor
+    x = Dense(1024, activation='relu')(x)  # add one fully connected layer
+    predictions = Dense(10, activation='softmax')(x)  # 10 monkey, therefore 10 output units w softmax activation
 
-    # this is the model we will full
     model = Model(inputs=base_model.input, outputs=predictions)
 
-    # first: full only the top layers (which were randomly initialized)
-    # i.e. freeze all convolutional InceptionV3 layers
+    # make the base model untrainable (frozen)
     for layer in base_model.layers:
         layer.trainable = False
 
@@ -53,7 +48,7 @@ def build_model_fine_tuning(model, learning_rate=0.0001, momentum=0.9):
 
 
 def create_callbacks(name):
-    tensorboard_callback = TensorBoard(log_dir=os.path.join(os.getcwd(), "tb_log", name), write_graph=True, write_grads=False)
+    tensorboard_callback = TensorBoard(log_dir=os.path.join(os.getcwd(), "tensorboard_log", name), write_graph=True, write_grads=False)
     checkpoint_callback = ModelCheckpoint(filepath="./model-weights" + name + ".{epoch:02d}-{val_loss:.6f}.hdf5", monitor='val_loss',
                                           verbose=0, save_best_only=True)
     return [tensorboard_callback, checkpoint_callback]
@@ -77,45 +72,49 @@ def setup_data(train_data_dir, val_data_dir, img_width=299, img_height=299, batc
     return train_generator, validation_generator
 
 
+def fit_model(model, train_generator, val_generator, batch_size, epochs, name):
+    model.fit_generator(
+        train_generator,
+        steps_per_epoch=train_generator.n // batch_size,
+        epochs=epochs,
+        validation_data=val_generator,
+        validation_steps=val_generator.n // batch_size,
+        callbacks=create_callbacks(name=name),
+        verbose=1)
+    return model
+
+
+def eval_model(model, val_generator, batch_size):
+    scores = model.evaluate_generator(val_generator, steps=val_generator.n // batch_size)
+    print("Loss: " + str(scores[0]) + " Accuracy: " + str(scores[1]))
+
+
 def main():
+    config = Configuration()
+    train_generator, val_generator = setup_data(config.data_dir, config.val_dir, batch_size=config.batch_size)
 
-    data_dir = "data/10-monkey-species/training"
-    val_dir = "data/10-monkey-species/validation"
-    epochs = 10
-    batch_size = 30
+    # Feature Extraction
     model = build_model_feature_extraction()
-    train_generator, val_generator = setup_data(data_dir, val_dir)
-    callbacks_fe = create_callbacks(name='feature_extraction')
-    callbacks_ft = create_callbacks(name='fine_tuning')
+    model = fit_model(model, train_generator, val_generator,
+                      batch_size=config.batch_size,
+                      epochs=config.feature_extraction_epochs,
+                      name="feature_extraction")
 
-    # stage 1 fit
-    model.fit_generator(
-        train_generator,
-        steps_per_epoch=train_generator.n // batch_size,
-        epochs=epochs,
-        validation_data=val_generator,
-        validation_steps=val_generator.n // batch_size,
-        callbacks=callbacks_fe,
-        verbose=1)
+    print("Feature Extraction Complete.")
+    eval_model(model, val_generator, batch_size=config.batch_size)
 
-    scores = model.evaluate_generator(val_generator, steps=val_generator.n // batch_size)
-    print("Step 1 Scores: Loss: " + str(scores[0]) + " Accuracy: " + str(scores[1]))
-
-    # stage 2 fit
+    # Fine Tuning
     model = build_model_fine_tuning(model)
-    model.fit_generator(
-        train_generator,
-        steps_per_epoch=train_generator.n // batch_size,
-        epochs=epochs,
-        validation_data=val_generator,
-        validation_steps=val_generator.n // batch_size,
-        callbacks=callbacks_ft,
-        verbose=1)
+    model = fit_model(model, train_generator, val_generator,
+                      batch_size=config.batch_size,
+                      epochs=config.fine_tuning_epochs,
+                      name="fine_tuning")
 
-    scores = model.evaluate_generator(val_generator, steps=val_generator.n // batch_size)
-    print("Step 2 Scores: Loss: " + str(scores[0]) + " Accuracy: " + str(scores[1]))
+    print("Fine Tuning Complete.")
+    eval_model(model, val_generator, batch_size=config.batch_size)
 
-    model.save("model.h5")
+    print("Saving Model...")
+    model.save("transfer_learning_model.h5")
 
 
 if __name__ == "__main__":
