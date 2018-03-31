@@ -49,7 +49,7 @@ def build_model_fine_tuning(model, learning_rate=0.0001, momentum=0.9):
 
 def create_callbacks(name):
     tensorboard_callback = TensorBoard(log_dir=os.path.join(os.getcwd(), "tensorboard_log", name), write_graph=True, write_grads=False)
-    checkpoint_callback = ModelCheckpoint(filepath="./model-weights-" + name + ".{epoch:02d}-{val_loss:.6f}.hdf5", monitor='val_loss',
+    checkpoint_callback = ModelCheckpoint(filepath="./model-weights-ls" + name + ".{epoch:02d}-{val_loss:.6f}.hdf5", monitor='val_loss',
                                           verbose=0, save_best_only=True)
     return [tensorboard_callback, checkpoint_callback]
 
