@@ -19,7 +19,7 @@ from transfer_learning_config import Configuration
 
 
 def build_model():
-    inputs = Input(shape=(299,299), name="input")
+    inputs = Input(shape=(299,299,3), name="input")
 
     # convolutional block 1
     conv1 = Conv2D(64, kernel_size=(3, 3), activation="relu", name="conv_1")(inputs)
