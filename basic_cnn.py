@@ -22,17 +22,23 @@ def build_model():
     inputs = Input(shape=(299,299,3), name="input")
 
     # convolutional block 1
-    conv1 = Conv2D(64, kernel_size=(3, 3), activation="relu", name="conv_1")(inputs)
-    batch1 = BatchNormalization(name="batch_norm_1")(conv1)
-    pool1 = MaxPooling2D(pool_size=(2, 2), name="pool_1")(batch1)
+    x = Conv2D(128, kernel_size=(3, 3), activation="relu", name="conv_1")(inputs)
+    x = MaxPooling2D(pool_size=(2, 2), name="pool_1")(x)
 
     # convolutional block 2
-    conv2 = Conv2D(32, kernel_size=(3, 3), activation="relu", name="conv_2")(pool1)
-    batch2 = BatchNormalization(name="batch_norm_2")(conv2)
-    pool2 = MaxPooling2D(pool_size=(2, 2), name="pool_2")(batch2)
+    x = Conv2D(64, kernel_size=(3, 3), activation="relu", name="conv_2")(x)
+    x = MaxPooling2D(pool_size=(2, 2), name="pool_2")(x)
+
+    # convolutional block 3
+    x = Conv2D(32, kernel_size=(3, 3), activation="relu", name="conv_3")(x)
+    x = MaxPooling2D(pool_size=(2, 2), name="pool_3")(x)
+
+    # convolutional block 4
+    x = Conv2D(16, kernel_size=(3, 3), activation="relu", name="conv_4")(x)
+    x = MaxPooling2D(pool_size=(2, 2), name="pool_4")(x)
 
     # fully connected layers
-    flatten = Flatten()(pool2)
+    flatten = Flatten()(x)
     fc1 = Dense(1024, activation="relu", name="fc1")(flatten)
 
     # output layer
