@@ -48,7 +48,7 @@ def create_callbacks(name):
     tensorboard_callback = TensorBoard(log_dir=os.path.join(os.getcwd(), "tensorboard_log", name), write_graph=True, write_grads=False)
     checkpoint_callback = ModelCheckpoint(filepath="./model-weights-" + name + ".{epoch:02d}-{val_loss:.6f}.hdf5", monitor='val_loss',
                                           verbose=0, save_best_only=True)
-    return [tensorboard_callback, checkpoint_callback]
+    return [tensorboard_callback]
 
 
 def setup_data(train_data_dir, val_data_dir, img_width=299, img_height=299, batch_size=16):
