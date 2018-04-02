@@ -10,7 +10,7 @@ tf.set_random_seed(42)
 
 from keras.applications.inception_v3 import InceptionV3
 from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D
+from keras.layers import Dense, Conv2D, BatchNormalization, MaxPooling2D, Flatten, Dropout, Input
 from keras.callbacks import TensorBoard, ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import SGD
@@ -19,15 +19,28 @@ from transfer_learning_config import Configuration
 
 
 def build_model():
-    # create the base model, using Inception Structure but no weights
-    base_model = InceptionV3(weights=None, include_top=False)
-    x = base_model.output
-    x = GlobalAveragePooling2D()(x)  # make sure we're back at a 2d tensor
-    x = Dense(1024, activation='relu')(x)  # add one fully connected layer
-    predictions = Dense(10, activation='softmax')(x)  # 10 monkey, therefore 10 output units w softmax activation
+    inputs = Input(shape=(299,299), name="input")
 
-    model = Model(inputs=base_model.input, outputs=predictions)
-    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+    # convolutional block 1
+    conv1 = Conv2D(64, kernel_size=(3, 3), activation="relu", name="conv_1")(inputs)
+    batch1 = BatchNormalization(name="batch_norm_1")(conv1)
+    pool1 = MaxPooling2D(pool_size=(2, 2), name="pool_1")(batch1)
+
+    # convolutional block 2
+    conv2 = Conv2D(32, kernel_size=(3, 3), activation="relu", name="conv_2")(pool1)
+    batch2 = BatchNormalization(name="batch_norm_2")(conv2)
+    pool2 = MaxPooling2D(pool_size=(2, 2), name="pool_2")(batch2)
+
+    # fully connected layers
+    flatten = Flatten()(pool2)
+    fc1 = Dense(1024, activation="relu", name="fc1")(flatten)
+
+    # output layer
+    output = Dense(10, activation="softmax", name="softmax")(fc1)
+
+    # finalize and compile
+    model = Model(inputs=inputs, outputs=output)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=["accuracy"])
     return model
 
 
